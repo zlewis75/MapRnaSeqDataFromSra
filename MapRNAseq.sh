@@ -12,56 +12,110 @@
 
 cd $SLURM_SUBMIT_DIR
 
+THREADS=12
+
 ###ADD a source file with path to FastqFiles
 
 accession="Path/To/Your/AccessionFile.txt"
 fastqPath="Path/To/YOur/Fastq/Folder/"
 
+
+
 #load modules
 #trim_galore
 #HISAT2
 #PicardTools - MarkDuplicates
-#
-
 
 #pipeline summary: trim reads, map with Hisat2, remove duplicates, get featureCounts,
 #for JGI, dump a pdf of reads mapped across deletion strain
 
-
+#read through file with list of accessions and perform the following operations
 while read -r line
 do
 
-############# Read Trimming ##############
+#input file variables
+  read1=${fastqPath}/${accession}/${accession}_1.fastq.gz
+  read2=${fastqPath}/${accession}/${accession}_2.fastq.gz
+  unpaired=${fastqPath}/${accession}/${accession}.fastq.gz
 
-  for read1 in $(find $RAW -name '*R1.fastq.gz')
-  do
-  	read2=$(echo $read1 | sed 's/R1_001.fastq/R2_001.fastq/')
-  	trim_galore --illumina --paired --fastqc --gzip -o $TRIMMED $read1 $read2
-  done
+#input file sizes
+  read1_size=$(stat -c %s "$read1")
+  unpaired_size=$(stat -c %s "$unpaired")
+
+#make output file folders
+outdir="Path/To/Your/Output/Folder"
+trimmed="Path/To/Your/TrimmedFastq/Folder"
+bam="Path/To/Your/Bams/${accession}.bam"
+
+############# Read Trimming ##############
+#remove adaptors, trim low quality reads (default = phred 20), length > 25
+
+##fastq files from the ebi link are in folders that either have one file with a SRR##.fastq.gz or a SRR##_1.fastq.gz ending, or have two files with a SRR##_1.fastq.gz ending or a SRR##_2.fastq.gz ending
+#or have three files with a SRR##_1.fastq.gz, SRR##_2.fastq.gz and SRR##.fastq.gz ending. In this case, the third file corresponds to unpaired reads that the depositers mapped.
+
+
+#if read1 file does not exist, do single-end trimming using the only file in the folder i.e. SRR##.fastq.gz filename format
+##This entire section can be simplified for JGI data
+
+
+if [ ! -f $read1 ]
+#trim reads
+  trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $unpaired
+
+wait
+
+#map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
+samtools index "$bam"
+
+
+
+
+#elseif read2 exists, do paired-end Trimming and PE mapping
+elif test -f "$read2"; then
+
+  trim_galore --illumina --fastqc --paired --length 25 --basename ${accession} --gzip -o $trimmed $read1 $read2
   wait
 
+#map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+
+  hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -1 ${trimmed}/${accesssion}_val_1.fq.gz -2 ${trimmed}/${accesssion}_val_2.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
+  samtools index "$bam"
+
+#in rare cases there will only be a SRR##_1.fastq.gz format. Use this if nothing else exists.
+else
+       trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $read1
+
+       #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+       hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $OUTDIR/SortedBamFiles/tempReps -o "$bam" -
+       samtools index "$bam"
+fi
+
+
+
+
+
+
+
+
+
+
+
+#finish all operations of accession file list
 done <"${accession}"
 
 
 
 
+
+
+
+
+
+
+
+
 ################################################################################
-#trim reads
-for read1 in $(find $RAW -name '*R1.fastq.gz')
-do
-	read2=$(echo $read1 | sed 's/R1_001.fastq/R2_001.fastq/')
-	trim_galore --illumina --paired --fastqc --gzip -o $TRIMMED $read1 $read2
-done
-wait
-
-
-
-
-
-
-
-
-
 ##########################
 Everything Below is Old code. Delete once up and running.
 
@@ -87,38 +141,6 @@ mkdir $UNINT
 mkdir $TRIMMED
 mkdir $BAMS
 mkdir $COUNTS
-
-
-#uninterleave fastqs for downstream
-for F in $(find $RAW -name '*.fastq.gz'); do
-	reformat.sh in=$F out1=${F%.*}.R1.fastq.gz out2=${F%.*}.R2.fastq.gz int=t
-done
-wait
-
-#trim reads
-for read1 in $(find $RAW -name '*R1.fastq.gz')
-do
-	read2=$(echo $read1 | sed 's/R1_001.fastq/R2_001.fastq/')
-	trim_galore --illumina --paired --fastqc --gzip -o $TRIMMED $read1 $read2
-done
-wait
-
-#map with hisat2
-for i in $(find $TRIMMED -name '*_val_1.fq.gz')
-do
-	SAMPLE=$(echo ${i%_S*})
-    R1=$(echo ${i#*_S})
-    R2=$(echo ${i#*_S} | sed "s/_1_val_1.fq.gz/_2_val_2.fq.gz/g")
-    #echo "${SAMPLE}_S${R1}"
-    #echo "${SAMPLE}_S${R2}"
-
-sorted="$BAMS/SortedSized_$SAMPLE.bam"
-
-hisat2 -q -x /home/arf18076/Genome/Neurospora/GCA_000182925.2_NC12_genomic -1 $R1 -2 $R2 | samtools view -bhSu - |  samtools sort -o "$sorted"
-samtools index "$sorted"
-
-done
-wait
 
 #mark duplicates
 find $BAMS -name "*.bam" | while read F ; do
