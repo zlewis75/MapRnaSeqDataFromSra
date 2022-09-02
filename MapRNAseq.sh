@@ -19,7 +19,7 @@ THREADS=12
 accession="Path/To/Your/AccessionFile.txt"
 fastqPath="Path/To/YOur/Fastq/Folder/"
 
-#pipeline summary: trim reads, map with STAR, remove duplicates, get Counts
+#pipeline summary: trim reads, map with STAR, get Counts
 #for JGI data, dump a pdf of reads mapped across deletion strain
 
 #notes
