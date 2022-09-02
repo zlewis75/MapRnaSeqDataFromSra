@@ -19,16 +19,30 @@ THREADS=12
 accession="Path/To/Your/AccessionFile.txt"
 fastqPath="Path/To/YOur/Fastq/Folder/"
 
+#pipeline summary: trim reads, map with STAR, remove duplicates, get Counts
+#for JGI data, dump a pdf of reads mapped across deletion strain
+
+#notes
+#generated a STAR genome index with the following call:
+#STAR --runMode genomeGenerate --runThreadN 1 --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR --genomeFastaFiles /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna --sjdbGTFfile /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_WithExtras_GFFtoGTFconversion.gtf
 
 
-#load modules
+###################
+#start
+
+#############load modules##########################
 #trim_galore
-#HISAT2
+module load Trim_Galore/0.6.5-GCCcore-8.3.0-Java-11-Python-3.7.4
+
+#STAR
+module load STAR/2.7.10a-GCC-8.3.0
+
 #PicardTools - MarkDuplicates
+module load picard/2.26.10-Java-13
+GATK/4.2.5.0-GCCcore-8.3.0-Java-1.8
+####################################################
 
-#pipeline summary: trim reads, map with Hisat2, remove duplicates, get featureCounts,
-#for JGI, dump a pdf of reads mapped across deletion strain
-
+###################################
 #read through file with list of accessions and perform the following operations
 while read -r line
 do
@@ -57,16 +71,33 @@ bam="Path/To/Your/Bams/${accession}.bam"
 #if read1 file does not exist, do single-end trimming using the only file in the folder i.e. SRR##.fastq.gz filename format
 ##This entire section can be simplified for JGI data
 
-
 if [ ! -f $read1 ]
 #trim reads
   trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $unpaired
 
 wait
 
-#map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
-samtools index "$bam"
+#map with STAR
+  STAR --runMode alignReads \
+  --runThreadN $THREADS \
+  --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
+  --outFileNamePrefix ./${accession} \
+  --readFilesIn $unpaired  \
+  --readFilesCommand zcat \
+  --outSAMtype BAM SortedByCoordinate \
+  --outSAMunmapped Within \
+  --outSAMattributes Standard
+
+#remove duplicates
+  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
+      I=${accession}.bam \
+      O=${accessions}_markedDups.bam \
+      M=marked_dup_metrics.txt
+
+#########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
+# #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+# hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
+# samtools index "$bam"
 
 
 
@@ -77,19 +108,48 @@ elif test -f "$read2"; then
   trim_galore --illumina --fastqc --paired --length 25 --basename ${accession} --gzip -o $trimmed $read1 $read2
   wait
 
-#map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
 
-  hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -1 ${trimmed}/${accesssion}_val_1.fq.gz -2 ${trimmed}/${accesssion}_val_2.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
-  samtools index "$bam"
+  #map with STAR
+    STAR --runMode alignReads \
+    --runThreadN $THREADS \
+    --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
+    --outFileNamePrefix ${accession} \
+    --readFilesIn $read1 $read2  \
+    --readFilesCommand zcat \
+    --outSAMtype BAM SortedByCoordinate \
+    --outSAMunmapped Within \
+    --outSAMattributes Standard
+
+#########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
+# #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+#map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+  # hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -1 ${trimmed}/${accesssion}_val_1.fq.gz -2 ${trimmed}/${accesssion}_val_2.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
+  # samtools index "$bam"
+
+
 
 #in rare cases there will only be a SRR##_1.fastq.gz format. Use this if nothing else exists.
 else
        trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $read1
 
+       #map with STAR
+         STAR --runMode alignReads \
+         --runThreadN $THREADS \
+         --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
+         --outFileNamePrefix ${accession} \
+         --readFilesIn $read1  \
+         --readFilesCommand zcat \
+         --outSAMtype BAM SortedByCoordinate \
+         --outSAMunmapped Within \
+         --outSAMattributes Standard
+
        #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-       hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $OUTDIR/SortedBamFiles/tempReps -o "$bam" -
-       samtools index "$bam"
-fi
+       #########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
+       # #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+       #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
+#        hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $OUTDIR/SortedBamFiles/tempReps -o "$bam" -
+#        samtools index "$bam"
+# fi
 
 
 
