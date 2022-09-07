@@ -10,6 +10,12 @@
 #SBATCH --output=../MapCutAndRun.%j.out
 #SBATCH --error=../MapCutAndRun.%j.err
 
+
+##to do
+#1 make a STAR reference with regular annotation file
+#2 convert regular annoation to gtf
+
+
 cd $SLURM_SUBMIT_DIR
 
 THREADS=12
@@ -17,7 +23,8 @@ THREADS=12
 ###ADD a source file with path to FastqFiles
 
 accession="Path/To/Your/AccessionFile.txt"
-fastqPath="Path/To/YOur/Fastq/Folder/"
+fastqPath="Path/To/YOur/Fastq/Directory"
+outdir="Path/To/Your/Output/Directory"
 
 #pipeline summary: trim reads, map with STAR, get Counts
 #for JGI data, dump a pdf of reads mapped across deletion strain
@@ -25,21 +32,11 @@ fastqPath="Path/To/YOur/Fastq/Folder/"
 #notes
 #generated a STAR genome index with the following call:
 #STAR --runMode genomeGenerate --runThreadN 1 --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR --genomeFastaFiles /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna --sjdbGTFfile /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_WithExtras_GFFtoGTFconversion.gtf
+#need to rerun with normal genome assembly. The his-3 duplicated region will create multi-mappers
 
 
 ###################
 #start
-
-#############load modules##########################
-#trim_galore
-module load Trim_Galore/0.6.5-GCCcore-8.3.0-Java-11-Python-3.7.4
-
-#STAR
-module load STAR/2.7.10a-GCC-8.3.0
-
-#PicardTools - MarkDuplicates
-module load picard/2.26.10-Java-13
-GATK/4.2.5.0-GCCcore-8.3.0-Java-1.8
 ####################################################
 
 ###################################
@@ -56,10 +53,14 @@ do
   read1_size=$(stat -c %s "$read1")
   unpaired_size=$(stat -c %s "$unpaired")
 
-#make output file folders
-outdir="Path/To/Your/Output/Folder"
-trimmed="Path/To/Your/TrimmedFastq/Folder"
-bam="Path/To/Your/Bams/${accession}.bam"
+#make output file variables and foldersfolders
+trimmed="${outdir}/Trimmed"
+bam="${outdir}/${accession}.bam"
+counts="${fastqPath}/${accession}/${accession}_counts.txt"
+
+mkdir $trimmed
+mkdir "${outdir}/BamFiles"
+
 
 ############# Read Trimming ##############
 #remove adaptors, trim low quality reads (default = phred 20), length > 25
@@ -73,11 +74,16 @@ bam="Path/To/Your/Bams/${accession}.bam"
 
 if [ ! -f $read1 ]
 #trim reads
+  echo "${accesion} running as unpaired file only"
+  module load Trim_Galore/0.6.5-GCCcore-8.3.0-Java-11-Python-3.7.4
+
   trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $unpaired
 
-wait
+  wait
 
 #map with STAR
+  module load STAR/2.7.10a-GCC-8.3.0
+
   STAR --runMode alignReads \
   --runThreadN $THREADS \
   --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
@@ -88,11 +94,16 @@ wait
   --outSAMunmapped Within \
   --outSAMattributes Standard
 
-#remove duplicates
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
-      I=${accession}.bam \
-      O=${accessions}_markedDups.bam \
-      M=marked_dup_metrics.txt
+#quantify with featureCounts
+
+  module load Subread/2.0.1-GCC-8.3.0
+
+  featureCounts -T $THREADS \
+  -t CDS \
+  -s 0 --primary \
+  -a  /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
+  -o $counts
+
 
 #########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
 # #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
@@ -100,10 +111,9 @@ wait
 # samtools index "$bam"
 
 
-
-
 #elseif read2 exists, do paired-end Trimming and PE mapping
 elif test -f "$read2"; then
+  echo "${accesion} running as PE file only"
 
   trim_galore --illumina --fastqc --paired --length 25 --basename ${accession} --gzip -o $trimmed $read1 $read2
   wait
@@ -120,6 +130,16 @@ elif test -f "$read2"; then
     --outSAMunmapped Within \
     --outSAMattributes Standard
 
+    ##quantify with featureCounts
+      module load Subread/2.0.1-GCC-8.3.0
+
+      featureCounts -T $THREADS \
+      -t CDS \
+      -s 2 -p --primary \ ##
+      -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \  ##need path to gtf  \
+      -o $counts
+
+
 #########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
 # #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
 #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
@@ -130,6 +150,9 @@ elif test -f "$read2"; then
 
 #in rare cases there will only be a SRR##_1.fastq.gz format. Use this if nothing else exists.
 else
+
+    echo "${accesion} running as Read1 file only"
+
        trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $read1
 
        #map with STAR
@@ -143,21 +166,21 @@ else
          --outSAMunmapped Within \
          --outSAMattributes Standard
 
+         ##quantify with featureCounts
+         module load Subread/2.0.1-GCC-8.3.0
+
+         featureCounts -T $THREADS \
+         -t CDS \
+         -s 0 --primary \
+         -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
+         -o $counts
        #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
        #########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
        # #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
        #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
 #        hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $OUTDIR/SortedBamFiles/tempReps -o "$bam" -
 #        samtools index "$bam"
-# fi
-
-
-
-
-
-
-
-
+fi
 
 
 
@@ -169,88 +192,88 @@ done <"${accession}"
 
 
 
-
-
-
-
-
-
-################################################################################
-##########################
-Everything Below is Old code. Delete once up and running.
-
-#########################
-#### need to check all modules
-module load Trim_Galore/0.4.5-foss-2016b
-module load HISAT2/2.1.0-foss-2016b
-module load SAMtools/1.6-foss-2016b
-module load picard/2.16.0-Java-1.8.0_144
-module load Subread/1.6.2
-module load R/3.4.4-foss-2016b-X11-20160819-GACRC
-module load BBMap/37.67-foss-2017b-Java-1.8.0_144
-
-
-SOURCE=/scratch/arf18076/ISWIpaper/JGI_RNAseq/OriginalDownloads
-RAW=$SOURCE/FastQs
-UNINT=$SOURCE/FastQs/Unint
-TRIMMED=$SOURCE/TrimmedReads
-BAMS=$SOURCE/SortedBamFiles
-COUNTS=$SOURCE/ExpressionAnalysis
-
-mkdir $UNINT
-mkdir $TRIMMED
-mkdir $BAMS
-mkdir $COUNTS
-
-#mark duplicates
-find $BAMS -name "*.bam" | while read F ; do
-    java -jar /usr/local/apps/eb/picard/2.16.0-Java-1.8.0_144/picard.jar MarkDuplicatesWithMateCigar \
-         MINIMUM_DISTANCE=180 \
-         REMOVE_DUPLICATES=false \
-         I=$F \
-         O=${F%.*}_Dup.bam\
-         M=${F%.*}_metrics.txt
-
-done
-
-bamfolder="$BAMS/*_Dup.bam"
-for b in $bamfolder
-do
-	dup="$SOURCE/DupMarked"
-	mkdir -p $dup
-	mv $b $dup/
-done
-
-metsfolder="$BAMS/*_Dup.bam"
-for m in $metsfolder
-do
-	mets="$SOURCE/DupMarked"
-	mv $m $mets/
-
-done
-
-#get counts
-for FILE in $(find "$SOURCE/DupMarked" -name "*_Dup.bam"); do
-    echo "Working on $FILE"
-    featureCounts -t "$FILE" \
-    -s 2 -p --primary \
-    -a /home/arf18076/Genome/Neurospora/GCA_000182925.2_NC12_Assembled.gtf \
-    -o $COUNTS/CountMatrix.txt
-done
-
-
-#get differential expression
-cd $COUNTS
-for F in $(find "$SOURCE" -name "*fastq.gz"); do
-    echo ${F%.*}
-done < sampleData.txt
-
-for F in $(find "$SOURCE" -name "*fastq.gz"); do
-    echo ${F##-*-}
-done < groupData.txt
-
-paste sampleData.txt groupData.txt > PHENO_DATA.txt
-rm sampleData.txt
-rm groupData.txt
-
-R CMD BATCH DESeq2.R
+#
+#
+#
+#
+#
+#
+# ################################################################################
+# ##########################
+# Everything Below is Old code. Delete once up and running.
+#
+# #########################
+# #### need to check all modules
+# module load Trim_Galore/0.4.5-foss-2016b
+# module load HISAT2/2.1.0-foss-2016b
+# module load SAMtools/1.6-foss-2016b
+# module load picard/2.16.0-Java-1.8.0_144
+# module load Subread/1.6.2
+# module load R/3.4.4-foss-2016b-X11-20160819-GACRC
+# module load BBMap/37.67-foss-2017b-Java-1.8.0_144
+#
+#
+# SOURCE=/scratch/arf18076/ISWIpaper/JGI_RNAseq/OriginalDownloads
+# RAW=$SOURCE/FastQs
+# UNINT=$SOURCE/FastQs/Unint
+# TRIMMED=$SOURCE/TrimmedReads
+# BAMS=$SOURCE/SortedBamFiles
+# COUNTS=$SOURCE/ExpressionAnalysis
+#
+# mkdir $UNINT
+# mkdir $TRIMMED
+# mkdir $BAMS
+# mkdir $COUNTS
+#
+# #mark duplicates
+# find $BAMS -name "*.bam" | while read F ; do
+#     java -jar /usr/local/apps/eb/picard/2.16.0-Java-1.8.0_144/picard.jar MarkDuplicatesWithMateCigar \
+#          MINIMUM_DISTANCE=180 \
+#          REMOVE_DUPLICATES=false \
+#          I=$F \
+#          O=${F%.*}_Dup.bam\
+#          M=${F%.*}_metrics.txt
+#
+# done
+#
+# bamfolder="$BAMS/*_Dup.bam"
+# for b in $bamfolder
+# do
+# 	dup="$SOURCE/DupMarked"
+# 	mkdir -p $dup
+# 	mv $b $dup/
+# done
+#
+# metsfolder="$BAMS/*_Dup.bam"
+# for m in $metsfolder
+# do
+# 	mets="$SOURCE/DupMarked"
+# 	mv $m $mets/
+#
+# done
+#
+# #get counts
+# for FILE in $(find "$SOURCE/DupMarked" -name "*_Dup.bam"); do
+#     echo "Working on $FILE"
+#     featureCounts -t "$FILE" \
+#     -s 2 -p --primary \
+#     -a /home/arf18076/Genome/Neurospora/GCA_000182925.2_NC12_Assembled.gtf \
+#     -o $COUNTS/CountMatrix.txt
+# done
+#
+#
+# #get differential expression
+# cd $COUNTS
+# for F in $(find "$SOURCE" -name "*fastq.gz"); do
+#     echo ${F%.*}
+# done < sampleData.txt
+#
+# for F in $(find "$SOURCE" -name "*fastq.gz"); do
+#     echo ${F##-*-}
+# done < groupData.txt
+#
+# paste sampleData.txt groupData.txt > PHENO_DATA.txt
+# rm sampleData.txt
+# rm groupData.txt
+#
+# R CMD BATCH DESeq2.R
