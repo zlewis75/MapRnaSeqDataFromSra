@@ -53,13 +53,16 @@ do
   read1_size=$(stat -c %s "$read1")
   unpaired_size=$(stat -c %s "$unpaired")
 
-#make output file variables and foldersfolders
-trimmed="${outdir}/Trimmed"
-bam="${outdir}/${accession}.bam"
-counts="${fastqPath}/${accession}/${accession}_counts.txt"
+##make output file folders
+trimmed="${outdir}/TrimmedFastQs"
 
 mkdir $trimmed
 mkdir "${outdir}/BamFiles"
+
+#make variables for output file names
+bam="${outdir}/${accession}.bam"
+counts="${fastqPath}/${accession}/${accession}_counts.txt"
+
 
 
 ############# Read Trimming ##############
