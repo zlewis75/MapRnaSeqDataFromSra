@@ -88,7 +88,7 @@ if [ ! -f $read1 ]
   --runThreadN $THREADS \
   --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
   --outFileNamePrefix ./${accession} \
-  --readFilesIn $unpaired  \
+  --readFilesIn ${accession}_trimmed.fq.gz  \
   --readFilesCommand zcat \
   --outSAMtype BAM SortedByCoordinate \
   --outSAMunmapped Within \
@@ -124,7 +124,7 @@ elif test -f "$read2"; then
     --runThreadN $THREADS \
     --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
     --outFileNamePrefix ${accession} \
-    --readFilesIn $read1 $read2  \
+    --readFilesIn ${accession}_val_1.fq.gz ${accession}_val_2.fq.gz \
     --readFilesCommand zcat \
     --outSAMtype BAM SortedByCoordinate \
     --outSAMunmapped Within \
@@ -160,7 +160,7 @@ else
          --runThreadN $THREADS \
          --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
          --outFileNamePrefix ${accession} \
-         --readFilesIn $read1  \
+         --readFilesIn ${accession}_trimmed.fq.gz  \
          --readFilesCommand zcat \
          --outSAMtype BAM SortedByCoordinate \
          --outSAMunmapped Within \
