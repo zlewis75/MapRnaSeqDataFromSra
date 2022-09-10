@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=24
 #SBATCH --mem=100gb
 #SBATCH --time=144:00:00
-#SBATCH --output=../MapCutAndRun.%j.out
-#SBATCH --error=../MapCutAndRun.%j.err
+#SBATCH --output=./MapRNAseqFromSRA.%j.out
+#SBATCH --error=./MapRNAseqFromSRA.%j.err
 
 
 ##to do
@@ -97,6 +97,11 @@ if [ ! -f $read1 ]
   --outSAMunmapped Within \
   --outSAMattributes Standard
 
+  #create index
+  ml SAMtools/1.9-GCC-8.3.0
+  samtools index "${bam}Aligned.sortedByCoord.out.bam"
+
+
 #quantify with featureCounts
 
   module load Subread/2.0.1-GCC-8.3.0
@@ -105,13 +110,14 @@ if [ ! -f $read1 ]
   -t CDS \
   -s 0 --primary \
   -a  /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
-  -o $counts
+  -o $counts \
+${bam}Aligned.sortedByCoord.out.bam
 
+  ##Plot reads to visualize tracks if needed
+  	    ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+  	    #Plot all reads
+  	    bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
 
-#########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
-# #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-# hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
-# samtools index "$bam"
 
 
 #elseif read2 exists, do paired-end Trimming and PE mapping
@@ -133,6 +139,10 @@ elif test -f "$read2"; then
     --outSAMunmapped Within \
     --outSAMattributes Standard
 
+    #create index
+    ml SAMtools/1.9-GCC-8.3.0
+    samtools index "${bam}Aligned.sortedByCoord.out.bam"
+
     ##quantify with featureCounts
       module load Subread/2.0.1-GCC-8.3.0
 
@@ -140,14 +150,13 @@ elif test -f "$read2"; then
       -t CDS \
       -s 2 -p --primary \ ##
       -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \  ##need path to gtf  \
-      -o $counts
+      -o $counts \
+      ${bam}Aligned.sortedByCoord.out.bam
 
-
-#########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
-# #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-#map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-  # hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -1 ${trimmed}/${accesssion}_val_1.fq.gz -2 ${trimmed}/${accesssion}_val_2.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $outdir/SortedBamFiles/tempReps -o "$bam" -
-  # samtools index "$bam"
+      ##Plot reads to visualize tracks if needed
+      	    ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+      	    #Plot all reads
+      	    bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
 
 
 
@@ -169,6 +178,11 @@ else
          --outSAMunmapped Within \
          --outSAMattributes Standard
 
+
+         #create index
+         ml SAMtools/1.9-GCC-8.3.0
+         samtools index "${bam}Aligned.sortedByCoord.out.bam"
+
          ##quantify with featureCounts
          module load Subread/2.0.1-GCC-8.3.0
 
@@ -176,13 +190,16 @@ else
          -t CDS \
          -s 0 --primary \
          -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
-         -o $counts
-       #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-       #########JGI uses HISAT2 using a similar call to the one provided below. ####Delete if STAR if we will go with STAR
-       # #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-       #map with hisat2; here I will not provided any strandedness information, but with the JGI data, strandedness parameter can be used.
-#        hisat2 -q --max-intronlen 8000 -x /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_00182925.2plusHphplusBarplusTetO.fna -U ${trimmed}/${accesssion}_trimmed.fq.gz  | samtools view -bhSu - | samtools sort -@ $THREADS -T $OUTDIR/SortedBamFiles/tempReps -o "$bam" -
-#        samtools index "$bam"
+         -o $counts \
+         ${bam}Aligned.sortedByCoord.out.bam
+
+
+         ##Plot reads to visualize tracks if needed
+         	    ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+         	    #Plot all reads
+         	    bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+
+
 fi
 
 
