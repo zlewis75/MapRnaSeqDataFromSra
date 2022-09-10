@@ -85,7 +85,7 @@ if [ ! -f $read1 ]; then
   --runThreadN $THREADS \
   --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
   --outFileNamePrefix ${bam} \
-  --readFilesIn $trimmed/${accession}_trimmed.fq.gz
+  --readFilesIn $trimmed/${accession}_trimmed.fq.gz \
   --readFilesCommand zcat \
   --outSAMtype BAM SortedByCoordinate \
   --outBAMsortingBinsN 100 \
