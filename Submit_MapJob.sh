@@ -16,7 +16,7 @@ fi
 
 #iterates through list of accessions and passes to mapping script
 
-fastqPath="Path/To/Fastq/Folder" #fastq directory generate by https://github.com/UGALewisLab/downloadSRA.git
+fastqPath="../FastqFiles" #fastq directory generate by https://github.com/UGALewisLab/downloadSRA.git
 outdir="../MappingOutput"
 
 mkdir ${outdir}
