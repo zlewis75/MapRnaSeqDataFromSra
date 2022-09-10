@@ -102,6 +102,7 @@ if [ ! -f $read1 ]; then
 
   featureCounts -T $THREADS \
   -t CDS \
+  -g gene_name \
   -s 0 --primary \
   -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
   -o $counts \
@@ -151,6 +152,7 @@ elif [ -f $read2 ]; then
 
         featureCounts -T $THREADS \
         -t CDS \
+        -g gene_name \
         -s 0 --primary \
         -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
         -o $counts \
@@ -191,6 +193,7 @@ else
 
          featureCounts -T $THREADS \
          -t CDS \
+         -g gene_name \
          -s 0 --primary \
          -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
          -o $counts \
