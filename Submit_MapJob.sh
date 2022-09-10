@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 #check for required command line argument
@@ -17,23 +16,21 @@ fi
 
 #iterates through list of accessions and passes to mapping script
 
-accession="/scratch/zlewis/JGI_Sept2022/AccessionLists/BatchOneSraAccessionsOnly.txt"
-fastqPath="/scratch/zlewis/JGI_Sept2022/BatchOne/downloadSRA/FastqFiles"
-outdir="/scratch/zlewis/JGI_Sept2022/BatchOne/ParTestt"
+fastqPath="Path/To/Fastq/Folder" #fastq directory generate by https://github.com/UGALewisLab/downloadSRA.git
+outdir="../MappingOutput"
 
 mkdir ${outdir}
 mkdir ${outdir}/logs
 
 #make output file folders
-trimmed="${outdir}/TrimmedFastQs/${line}"
 mkdir "${outdir}/TrimmedFastQs"
-mkdir $trimmed
-mkdir "${outdir}/BamFiles"
+mkdir "${outdir}/bamFiles"
 mkdir "${outdir}/counts"
+mkdir "${outdir}/bigWig"
 
 while read -r line
 
 	do
 	sleep 10
 	echo "$line mapping job submitted"
-	sbatch --export=ALL,line="${line}" parallel.sh & done <"$1"
+	sbatch --export=ALL,accession="${line}",fastqPath="${fastqPath}",outdir="${outdir}" MapJgiSamples.sh & done <"$1"
