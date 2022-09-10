@@ -33,4 +33,4 @@ while read -r line
 	do
 	sleep 10
 	echo "$line mapping job submitted"
-	sbatch --export=ALL,accession="${line}",fastqPath="${fastqPath}",outdir="${outdir}" MapJgiSamples.sh & done <"$1"
+	sbatch --export=ALL,accession="${line}",fastqPath="${fastqPath}",outdir="${outdir}" MapRNAseq.sh & done <"$1"
