@@ -92,22 +92,27 @@ if [ ! -f $read1 ]; then
   --outSAMunmapped Within \
   --outSAMattributes Standard \
   --limitBAMsortRAM 1490000000
-#quantify with featureCounts
 
+  #create index
+  ml SAMtools/1.9-GCC-8.3.0
+  samtools index "${bam}Aligned.sortedByCoord.out.bam"
+
+  ##quantify with featureCounts
   module load Subread/2.0.1-GCC-8.3.0
 
   featureCounts -T $THREADS \
   -t CDS \
-  -g gene_name \
   -s 0 --primary \
   -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
   -o $counts \
   ${bam}Aligned.sortedByCoord.out.bam
 
-  #Plot reads to visualize tracks if needed
-        ml deepTools/3.3.1-intel-2019b-Python-3.7.4
-        #Plot all reads
-        bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+
+  ##Plot reads to visualize tracks if needed
+       ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+       #Plot all reads
+       bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+
 
 
 #elseif read2 exists, do paired-end Trimming and PE mapping
@@ -137,22 +142,26 @@ elif [ -f $read2 ]; then
   	    --outSAMunmapped Within \
   	    --outSAMattributes Standard \
   	    --limitBAMsortRAM 1490000000
+        #create index
+        ml SAMtools/1.9-GCC-8.3.0
+        samtools index "${bam}Aligned.sortedByCoord.out.bam"
 
-  	##quantify with featureCounts
+        ##quantify with featureCounts
         module load Subread/2.0.1-GCC-8.3.0
 
         featureCounts -T $THREADS \
         -t CDS \
-  	    -g gene_name \
-        -s 0 -p --primary \
+        -s 0 --primary \
         -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
         -o $counts \
-  	  ${bam}Aligned.sortedByCoord.out.bam
+        ${bam}Aligned.sortedByCoord.out.bam
 
-  ##Plot reads to visualize tracks if needed
-  	    ml deepTools/3.3.1-intel-2019b-Python-3.7.4
-  	    #Plot all reads
-  	    bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+
+        ##Plot reads to visualize tracks if needed
+             ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+             #Plot all reads
+             bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+
 
 #in rare cases there will only be a SRR##_1.fastq.gz format. Use this if nothing else exists.
 else
@@ -162,34 +171,39 @@ else
        trim_galore --illumina --fastqc --length 25 --basename ${accession} --gzip -o $trimmed $read1
 
        #map with STAR
-       STAR --runMode alignReads \
-       --runThreadN $THREADS \
-       --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
-       --outFileNamePrefix ${bam} \
-       --readFilesIn $trimmed/${accession}_trimmed.fq.gz
-       --readFilesCommand zcat \
-       --outSAMtype BAM SortedByCoordinate \
-       --outBAMsortingBinsN 100 \
-       --outSAMunmapped Within \
-       --outSAMattributes Standard \
-       --limitBAMsortRAM 1490000000
-     #quantify with featureCounts
+         STAR --runMode alignReads \
+         --runThreadN $THREADS \
+         --genomeDir /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/STAR \
+         --outFileNamePrefix ${accession} \
+         --readFilesIn ${accession}_trimmed.fq.gz  \
+         --readFilesCommand zcat \
+         --outSAMtype BAM SortedByCoordinate \
+         --outSAMunmapped Within \
+         --outSAMattributes Standard
 
-       module load Subread/2.0.1-GCC-8.3.0
 
-       featureCounts -T $THREADS \
-       -t CDS \
-       -g gene_name \
-       -s 0 --primary \
-       -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
-       -o $counts \
-       ${bam}Aligned.sortedByCoord.out.bam
+         #create index
+         ml SAMtools/1.9-GCC-8.3.0
+         samtools index "${bam}Aligned.sortedByCoord.out.bam"
 
-       #Plot reads to visualize tracks if needed
-       ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+         ##quantify with featureCounts
+         module load Subread/2.0.1-GCC-8.3.0
 
-       #Plot all reads
-      bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+         featureCounts -T $THREADS \
+         -t CDS \
+         -s 0 --primary \
+         -a /home/zlewis/Genomes/Neurospora/Nc12_RefSeq/GCA_000182925.2_NC12_genomic_GFFtoGTFconversion.gtf \
+         -o $counts \
+         ${bam}Aligned.sortedByCoord.out.bam
+
+
+         ##Plot reads to visualize tracks if needed
+         	    ml deepTools/3.3.1-intel-2019b-Python-3.7.4
+         	    #Plot all reads
+         	    bamCoverage -p $THREADS -bs 50 --normalizeUsing BPM -of bigwig -b "${bam}Aligned.sortedByCoord.out.bam" -o "${bw}"
+
+
+fi
 
 
 fi
