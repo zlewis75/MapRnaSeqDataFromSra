@@ -5,7 +5,7 @@
 #SBATCH --mail-user=zlewis@uga.edu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=15gb
+#SBATCH --mem=20gb
 #SBATCH --time=8:00:00
 #SBATCH --output=../MappingOutput/logs/MapRNAseq.%j.err
 #SBATCH --error=../MappingOutput/logs/MapRNAseq.%j.err
@@ -38,7 +38,7 @@ THREADS=2
   read1=${fastqPath}/${accession}/${accession}_1.fastq.gz
   read2=${fastqPath}/${accession}/${accession}_2.fastq.gz
   unpaired=${fastqPath}/${accession}/${accession}.fastq.gz
-  
+
 #make output file folders
 trimmed="${outdir}/TrimmedFastQs/${accession}"
 mkdir $trimmed
@@ -92,7 +92,7 @@ if [ ! -f $read1 ]; then
   --outBAMsortingBinsN 100 \
   --outSAMunmapped Within \
   --outSAMattributes Standard \
-  --limitBAMsortRAM 1490000000
+  --limitBAMsortRAM 1999000000
 
   #create index
   ml SAMtools/1.9-GCC-8.3.0
@@ -140,10 +140,10 @@ elif [ -f $read2 ]; then
   	    --readFilesIn $trimmed/${accession}_val_1.fq.gz $trimmed/${accession}_val_2.fq.gz \
   	    --readFilesCommand zcat \
   	    --outSAMtype BAM SortedByCoordinate \
-  	    --outBAMsortingBinsN 100 \
-  	    --outSAMunmapped Within \
-  	    --outSAMattributes Standard \
-  	    --limitBAMsortRAM 1490000000
+        --outBAMsortingBinsN 100 \
+        --outSAMunmapped Within \
+        --outSAMattributes Standard \
+        --limitBAMsortRAM 1999000000
         #create index
         ml SAMtools/1.9-GCC-8.3.0
         samtools index "${bam}Aligned.sortedByCoord.out.bam"
@@ -182,7 +182,11 @@ else
          --readFilesCommand zcat \
          --outSAMtype BAM SortedByCoordinate \
          --outSAMunmapped Within \
-         --outSAMattributes Standard
+         --outSAMattributes Standard \
+         --outBAMsortingBinsN 100 \
+         --outSAMunmapped Within \
+         --outSAMattributes Standard \
+         --limitBAMsortRAM 1999000000
 
 
          #create index
