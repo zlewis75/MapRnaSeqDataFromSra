@@ -88,6 +88,7 @@ if [ ! -f $read1 ]; then
   --outFileNamePrefix ${bam} \
   --readFilesIn $trimmed/${accession}_trimmed.fq.gz \
   --readFilesCommand zcat \
+  --alignIntronMax 10000 \
   --outSAMtype BAM SortedByCoordinate \
   --outBAMsortingBinsN 100 \
   --outSAMunmapped Within \
@@ -139,6 +140,7 @@ elif [ -f $read2 ]; then
   	    --outFileNamePrefix ${bam} \
   	    --readFilesIn $trimmed/${accession}_val_1.fq.gz $trimmed/${accession}_val_2.fq.gz \
   	    --readFilesCommand zcat \
+        --alignIntronMax 10000 \
   	    --outSAMtype BAM SortedByCoordinate \
         --outBAMsortingBinsN 100 \
         --outSAMunmapped Within \
@@ -180,6 +182,7 @@ else
          --outFileNamePrefix ${accession} \
          --readFilesIn ${accession}_trimmed.fq.gz  \
          --readFilesCommand zcat \
+         --alignIntronMax 10000 \
          --outSAMtype BAM SortedByCoordinate \
          --outSAMunmapped Within \
          --outSAMattributes Standard \
