@@ -93,7 +93,7 @@ if [ ! -f $read1 ]; then
   --outBAMsortingBinsN 100 \
   --outSAMunmapped Within \
   --outSAMattributes Standard \
-  --limitBAMsortRAM 1999000000
+  --limitBAMsortRAM 19990000000
 
   #create index
   ml SAMtools/1.9-GCC-8.3.0
@@ -145,7 +145,7 @@ elif [ -f $read2 ]; then
         --outBAMsortingBinsN 100 \
         --outSAMunmapped Within \
         --outSAMattributes Standard \
-        --limitBAMsortRAM 1999000000
+        --limitBAMsortRAM 19990000000
         #create index
         ml SAMtools/1.9-GCC-8.3.0
         samtools index "${bam}Aligned.sortedByCoord.out.bam"
@@ -189,7 +189,7 @@ else
          --outBAMsortingBinsN 100 \
          --outSAMunmapped Within \
          --outSAMattributes Standard \
-         --limitBAMsortRAM 1999000000
+         --limitBAMsortRAM 19990000000
 
 
          #create index
